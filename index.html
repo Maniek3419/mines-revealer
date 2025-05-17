@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mines Revealer</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    input { margin: 5px; padding: 8px; width: 250px; }
+    button { padding: 10px 20px; margin-top: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(5, 50px); justify-content: center; margin-top: 20px; }
+    .cell { border: 1px solid #000; width: 50px; height: 50px; line-height: 50px; }
+    .mine { background-color: red; color: white; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Mines Revealer</h1>
+  <input id="clientSeed" placeholder="Client seed"><br>
+  <input id="serverSeed" placeholder="Server seed (odszyfrowany)"><br>
+  <input id="nonce" placeholder="Nonce (np. 1)"><br>
+  <input id="mineCount" placeholder="Liczba min (1-24)"><br>
+  <button onclick="reveal()">Pokaż miny</button>
+  <div id="grid" class="grid"></div>
+
+  <script>
+    function sha256(ascii) {
+      return crypto.subtle.digest("SHA-256", new TextEncoder().encode(ascii)).then(hashBuffer =>
+        Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("")
+      );
+    }
+
+    function getMinePositions(seed, mineCount) {
+      const positions = [];
+      const numbers = Array.from({ length: 25 }, (_, i) => i);
+      let i = 0;
+      while (positions.length < mineCount) {
+        const hash = sha256(seed + ":" + i);
+        i++;
+        numbers.sort(() => 0.5 - Math.random());
+        hash.then(h => {
+          for (let j = 0; j < numbers.length && positions.length < mineCount; j++) {
+            const pos = parseInt(h.substr(j * 2, 2), 16) % 25;
+            if (!positions.includes(pos)) positions.push(pos);
+          }
+          renderGrid(positions);
+        });
+      }
+    }
+
+    function reveal() {
+      const clientSeed = document.getElementById("clientSeed").value;
+      const serverSeed = document.getElementById("serverSeed").value;
+      const nonce = document.getElementById("nonce").value;
+      const mineCount = parseInt(document.getElementById("mineCount").value);
+      const combinedSeed = `${serverSeed}:${clientSeed}:${nonce}`;
+      getMinePositions(combinedSeed, mineCount);
+    }
+
+    function renderGrid(mines) {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      for (let i = 0; i < 25; i++) {
+        const div = document.createElement("div");
+        div.className = "cell" + (mines.includes(i) ? " mine" : "");
+        div.innerText = mines.includes(i) ? "X" : "";
+        grid.appendChild(div);
+      }
+    }
+  </script>
+</body>
+</html>
